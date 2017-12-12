@@ -1,4 +1,5 @@
 {
+    "cogs.MapleRoyals" : true,
     "cogs.alias" : false,
     "cogs.audio" : false,
     "cogs.customcom" : false,
