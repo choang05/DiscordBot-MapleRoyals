@@ -1,0 +1,14 @@
+{
+    "EMAIL" : null,
+    "OWNER" : "137062668149325824",
+    "PASSWORD" : null,
+    "PREFIXES" : [
+        "!"
+    ],
+    "TOKEN" : "Mzg5OTUyMzMzOTg0OTU2NDI3.DRDG_g.U8w21nL9My5Z41Px01wikzAJkuY",
+    "default" : {
+        "ADMIN_ROLE" : "Discord admin",
+        "MOD_ROLE" : "Process",
+        "PREFIXES" : []
+    }
+}
