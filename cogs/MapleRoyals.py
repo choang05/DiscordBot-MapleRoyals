@@ -2,55 +2,52 @@ from __future__ import print_function
 import discord
 import httplib2
 import os
+import jellyfish
 from discord.ext import commands
 from apiclient import discovery
 from oauth2client import client
 from oauth2client import tools
 from oauth2client.file import Storage
 from enum import Enum
-
-try:
-    import argparse
-    flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
-except ImportError:
-    flags = None
+from configparser import SafeConfigParser
 
 #   VARIABLES
+CONFIG_FILE_PATH = 'data/MapleRoyals/config.ini'
 
 # If modifying these scopes, delete your previously saved credentials
 # at ~/.credentials/sheets.googleapis.com-python-quickstart.json
 SCOPES = 'https://www.googleapis.com/auth/spreadsheets.readonly'
 CLIENT_SECRET_FILE = 'data/MapleRoyals/client_secret.json'
-APPLICATION_NAME = 'Google Sheets API Python Quickstart'
+#APPLICATION_NAME = 'Google Sheets API Python Quickstart'
 
 #   Price check source: https://docs.google.com/spreadsheets/d/1VHSCcav4Y9SDAExBYPnJbV5S8auAdChb9ylwhi_LAyQ/htmlview#
-spreadsheetId = '1VHSCcav4Y9SDAExBYPnJbV5S8auAdChb9ylwhi_LAyQ'
+spreadsheetID = None
+#   Spreadsheet ranges of each category
+UpdatedDateRange = None
+WeaponsNormalRange = None
+WeaponsEventRange = None
+HelmetRange = None
+OverallRange = None
+ShoesRange = None
+CapeRange = None
+FaceRange = None
+TopwearRange = None
+BottomwearRange = None
+GlovesRange = None
+ShieldRange = None
+EyeRange = None
+EarringRange = None
+HeartstopperRange = None
+OnyxAppleRange = None
+WhiteScrollRange = None
+ChaosScrollRange = None
 
-class Catagory(Enum):
-    WEAPONS = 1
-    HELMET = 2
-    OVERALL = 3
-    SHOES = 4
-    CAPE = 5
-    FACE = 6
-    TOPWEAR = 7
-    BOTTOMWEAR = 8
-    GLOVES = 9
-    SHIELD = 10
-    EYE = 11
-    EARRING = 12
-    HEARTSTOPPERS = 13
-    ONYX_APPLE = 14
-    WHITE_SCROLL = 15
-    WS = 16
-    CHAOS_SCROLL = 17
-    CS = 18
-
-class Mycog:
-    """My custom cog that does stuff!"""
+class MapleRoyals:
+    """Bot for MapleRoyals!"""
 
     def __init__(self, bot):
         self.bot = bot
+        InitializeConfig()
 
     #   COMMAND: PRICE CHECK
     @commands.command(pass_context=True)
@@ -61,17 +58,17 @@ class Mycog:
         """
         
         #   Evaluate catagory
-        if category.upper() == Catagory.WEAPONS.name:
+        if jellyfish.jaro_distance(category.lower(), 'weapons') > .80:
             weapons = GetWeaponsPC()
             #for weapon in weapons:
             #print(weapons)
 
-        msg = GetUpdatedDate()
+        msg = GetPriceUpdateDate()
 
         #await self.bot.say(msg)
 
 def setup(bot):
-    bot.add_cog(Mycog(bot))
+    bot.add_cog(MapleRoyals(bot))
 
 #   Returns the service from the Google sheets API
 def GetSheetsService():
@@ -109,11 +106,40 @@ def get_credentials():
         print('Storing credentials to ' + credential_path)
     return credentials
 
+#   Parse the config file and evaluate
+def InitializeConfig():
+    print("Initializing config...")
+
+    config = SafeConfigParser()
+    config.read(CONFIG_FILE_PATH)
+
+    #   Assign variables from config
+    #   Main Settings
+    spreadsheetID = config.get('Settings', 'price spreadsheet ID')
+    #   Scrolls section
+    UpdatedDateRange = config.get('Spreadsheet Price Ranges', 'price updated date')
+    WeaponsNormalRange = config.get('Spreadsheet Price Ranges', 'weapons 10%/30%/60%/70%')
+    WeaponsEventRange = config.get('Spreadsheet Price Ranges', 'weapons 100% event')
+    HelmetRange = config.get('Spreadsheet Price Ranges', 'helmet')
+    OverallRange = config.get('Spreadsheet Price Ranges', 'overall')
+    ShoesRange = config.get('Spreadsheet Price Ranges', 'shoes')
+    CapeRange = config.get('Spreadsheet Price Ranges', 'cape')
+    FaceRange = config.get('Spreadsheet Price Ranges', 'face')
+    TopwearRange = config.get('Spreadsheet Price Ranges', 'topwear')
+    BottomwearRange = config.get('Spreadsheet Price Ranges', 'bottomwear')
+    GlovesRange = config.get('Spreadsheet Price Ranges', 'gloves')
+    ShieldRange = config.get('Spreadsheet Price Ranges', 'shield')
+    EyeRange = config.get('Spreadsheet Price Ranges', 'eye')
+    EarringRange = config.get('Spreadsheet Price Ranges', 'earring')
+    HeartstopperRange = config.get('Spreadsheet Price Ranges', 'heartstopper')
+    OnyxAppleRange = config.get('Spreadsheet Price Ranges', 'onyx apple')
+    WhiteScrollRange = config.get('Spreadsheet Price Ranges', 'white scroll')
+    ChaosScrollRange = config.get('Spreadsheet Price Ranges', 'chaos scroll')
+
 #   Returns date of updates
-def GetUpdatedDate():
-    rangeName = 'Scrolls!A1:H'
+def GetPriceUpdateDate():
     service = GetSheetsService()
-    result = service.spreadsheets().values().get(spreadsheetId=spreadsheetId, range=rangeName).execute()
+    result = service.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=UpdatedDateRange).execute()
     values = result.get('values', [])
 
     if not values:
@@ -126,9 +152,9 @@ def GetWeaponsPC():
     weaponsPrices = []
 
     #   Get 10%-70% weapon range
-    rangeName = 'Scrolls!A7:E23'
+    print("Weapons range: " + str(WeaponsNormalRange))
     service = GetSheetsService()
-    result = service.spreadsheets().values().get(spreadsheetId=spreadsheetId, range=rangeName).execute()
+    result = service.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=WeaponsNormalRange).execute()
     normalValues = result.get('values', [])
 
     #   append each row
@@ -137,9 +163,8 @@ def GetWeaponsPC():
         weaponsPrices.append(tuple(row[1]))
 
     #   Get 100% event weapon range
-    rangeName = 'Scrolls!S4:S19'
     service = GetSheetsService()
-    result = service.spreadsheets().values().get(spreadsheetId=spreadsheetId, range=rangeName).execute()
+    result = service.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=WeaponsEventRange).execute()
     eventValues = result.get('values', [])
 
     #   Loop through each weapon and add
