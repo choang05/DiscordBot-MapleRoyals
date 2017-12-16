@@ -49,6 +49,7 @@ ChaosScrollRange = None
 class MapleRoyals:
     """Bot for MapleRoyals!"""
     global spreadsheetSource
+    global spreadsheetID
 
     def __init__(self, bot):
         self.bot = bot
@@ -117,7 +118,7 @@ class MapleRoyals:
         table.set_cols_align(["l", "c", "c", "c", "c", "c"])
         table.set_cols_valign(["m", "m", "m", "m", "m", "m"])
     
-        for i in range(0, 15):
+        for i in range(0, 14):
             table.add_row([scrolls[i][0], scrolls[i][1], scrolls[i][2], scrolls[i][3], scrolls[i][4], scrolls[i][5]])
         
         msg = ctx.message.author.mention + "\n"  
@@ -133,7 +134,7 @@ class MapleRoyals:
         table.set_cols_align(["l", "c", "c", "c", "c", "c"])
         table.set_cols_valign(["m", "m", "m", "m", "m", "m"])
     
-        for i in range(15, 28):
+        for i in range(14, 27):
             table.add_row([scrolls[i][0], scrolls[i][1], scrolls[i][2], scrolls[i][3], scrolls[i][4], scrolls[i][5]])
         msg = "```md" + "\n"
         msg += table.draw()
@@ -639,6 +640,94 @@ class MapleRoyals:
         msg += GetFormattedScrollsTable([scrolls[24], scrolls[25], scrolls[26]])
         msg += "\n```"
         msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
+        await self.bot.say(msg)
+
+    #   Price Check heartstoppers
+    @PriceCheck.command(name="heartstopper", aliases=["Heartstopper", "hs", "HS"], pass_context=True)
+    async def SayHeartstopperPrices(self, ctx):
+        """Show all prices for heartstoppers.
+        """
+
+        #   Add "typing... " status
+        await self.bot.send_typing(ctx.message.channel)
+
+        #   Get hearstopper range
+        result = SheetsService.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=HeartstopperRange).execute()
+        hearstopperRange = result.get('values', [])
+
+        msg = ctx.message.author.mention + "\n"
+        msg += "```md" + "\n"
+        msg += hearstopperRange[0][0]
+        msg += "\n```"
+        msg += "\nsource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
+        await self.bot.say(msg)
+
+    #   Price Check Onyx apples
+    @PriceCheck.command(name="onyxapple", aliases=["OnyxApple", "onyxapples", "OnyxApples", "onyx", "Onyx", "Apple", "apple"], pass_context=True)
+    async def SayOnyxApplePrices(self, ctx):
+        """Show all prices for Onyx Apples.
+        """
+
+        #   Add "typing... " status
+        await self.bot.send_typing(ctx.message.channel)
+
+        #   Get hearstopper range
+        result = SheetsService.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=OnyxAppleRange).execute()
+        miscRange = result.get('values', [])
+
+        msg = ctx.message.author.mention + "\n"
+        msg += "```md" + "\n"
+        msg += miscRange[0][0]
+        msg += "\n```"
+        msg += "\nsource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
+        await self.bot.say(msg)
+
+    #   Price Check white scrolls
+    @PriceCheck.command(name="ws", aliases=["WhiteScroll", "WhiteScrolls", "whitescrolls", "whitescroll", "WS", "white", "White"], pass_context=True)
+    async def SayWSPrices(self, ctx):
+        """Show all prices for White Scrolls.
+        """
+
+        #   Add "typing... " status
+        await self.bot.send_typing(ctx.message.channel)
+
+        #   Get hearstopper range
+        result = SheetsService.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=WhiteScrollRange).execute()
+        miscRange = result.get('values', [])
+
+        msg = ctx.message.author.mention + "\n"
+        msg += "```md" + "\n"
+        msg += miscRange[0][0]
+        msg += "\n```"
+        msg += "\nsource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
+        await self.bot.say(msg)
+
+    #   Price Check chaos scrolls
+    @PriceCheck.command(name="cs", aliases=["ChaosScroll", "chaosscroll", "chaosscrolls", "ChaosScrolls", "CS", "chaos", "Chaos"], pass_context=True)
+    async def SayCSPrices(self, ctx):
+        """Show all prices for Chaos Scrolls.
+        """
+
+        #   Add "typing... " status
+        await self.bot.send_typing(ctx.message.channel)
+
+        #   Get hearstopper range
+        result = SheetsService.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=ChaosScrollRange).execute()
+        miscRange = result.get('values', [])
+
+        msg = ctx.message.author.mention + "\n"
+        msg += "```md" + "\n"
+        msg += miscRange[0][0]
+        msg += "\n```"
+        msg += "\nsource: " + spreadsheetSource
         msg += "\n"+ GetPriceUpdateDate()
 
         await self.bot.say(msg)
