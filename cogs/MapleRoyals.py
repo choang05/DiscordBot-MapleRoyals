@@ -11,6 +11,7 @@ from oauth2client.file import Storage
 from enum import Enum
 from __main__ import send_cmd_help
 from configparser import SafeConfigParser
+from texttable import Texttable
 
 #   VARIABLES
 CONFIG_FILE_PATH = 'data/MapleRoyals/config.ini'
@@ -22,6 +23,7 @@ CLIENT_SECRET_FILE = 'data/MapleRoyals/client_secret.json'
 #APPLICATION_NAME = 'Google Sheets API Python Quickstart'
 
 #   Price check source: https://docs.google.com/spreadsheets/d/1VHSCcav4Y9SDAExBYPnJbV5S8auAdChb9ylwhi_LAyQ/edit#gid=9692681
+spreadsheetSource = None
 spreadsheetID = None
 SheetsService = None
 #   Spreadsheet ranges of each category
@@ -46,13 +48,14 @@ ChaosScrollRange = None
 
 class MapleRoyals:
     """Bot for MapleRoyals!"""
+    global spreadsheetSource
 
     def __init__(self, bot):
         self.bot = bot
         InitializeConfig()
         InitializeGoogleSheetsService()
 
-    @commands.group(pass_context=True, name="PriceCheck", aliases=["pc", "PC", "price", "pricecheck"])
+    @commands.group(pass_context=True, name="pc", aliases=["PriceCheck", "PC", "price", "pricecheck"])
     async def PriceCheck(self, ctx):
         """Price Check"""
 
@@ -64,7 +67,7 @@ class MapleRoyals:
             await send_cmd_help(ctx)
 
     #   COMMAND: CHECK UPDATE DATE
-    @PriceCheck.command(name="UpdatedDate", aliases=["updated", "updateddate","ud"], pass_context=True)
+    @PriceCheck.command(name="updated", aliases=["Updated", "UpdatedDate", "updateddate","ud"], pass_context=True)
     async def SayUpdatedDate(self, ctx):
         """
             Display last updated date.
@@ -78,7 +81,7 @@ class MapleRoyals:
         await self.bot.say(msg)
 
     #   Price Check all weapons
-    @PriceCheck.command(name="weapons", aliases=["w", "W", "Weapons", "Weapon", "weapon"], pass_context=False)
+    @PriceCheck.command(name="weapons", aliases=["w", "W", "Weapons", "Weapon", "weapon"], pass_context=True)
     async def SayWeaponsPrices(self, ctx):
         """Show all prices for weapons.
         """
@@ -86,16 +89,18 @@ class MapleRoyals:
         await self.bot.send_typing(ctx.message.channel)
 
         weapons = GetWeaponsPrices()
-        #   Add headers
-        weapons.insert(0, ("Weapon(s)","10%","30%","60%","70%","100% Event",)) 
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons)
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable(weapons)
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
 
         await self.bot.say(msg)
 
     #   Price Check all scrolls
-    @PriceCheck.command(name="scrolls", aliases=["Scrolls", "scroll", "Scroll", "s", "S"], pass_context=False)
+    @PriceCheck.command(name="scrolls", aliases=["Scrolls", "scroll", "Scroll", "s", "S"], pass_context=True)
     async def SayScrollPrices(self, ctx):
         """Show all prices for all scrolls.
         """
@@ -104,12 +109,37 @@ class MapleRoyals:
         await self.bot.send_typing(ctx.message.channel)
 
         scrolls = GetScrollPrices()
-        #   Add headers
-        scrolls.insert(0, ("Scroll(s)","10%","30%","60%","70%","100%",)) 
 
+        #   Since there are too many scrolls for a single message, a custom table code is needed. First part of scrolls
+        table = Texttable()
+        table.header(["Scroll(s)","10%","30%","60%","70%","100%"])
+        table.set_deco(Texttable.HEADER)
+        table.set_cols_align(["l", "c", "c", "c", "c", "c"])
+        table.set_cols_valign(["m", "m", "m", "m", "m", "m"])
+    
+        for i in range(0, 15):
+            table.add_row([scrolls[i][0], scrolls[i][1], scrolls[i][2], scrolls[i][3], scrolls[i][4], scrolls[i][5]])
+        
         msg = ctx.message.author.mention + "\n"  
-        msg += str(scrolls)
+        msg += "```md" + "\n"
+        msg += table.draw()
+        msg += "\n```"
+        await self.bot.say(msg)
 
+        #   Rest of scrolls
+        table = Texttable()
+        table.header(["Scroll(s)","10%","30%","60%","70%","100%"])
+        table.set_deco(Texttable.HEADER)
+        table.set_cols_align(["l", "c", "c", "c", "c", "c"])
+        table.set_cols_valign(["m", "m", "m", "m", "m", "m"])
+    
+        for i in range(15, 28):
+            table.add_row([scrolls[i][0], scrolls[i][1], scrolls[i][2], scrolls[i][3], scrolls[i][4], scrolls[i][5]])
+        msg = "```md" + "\n"
+        msg += table.draw()
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
         await self.bot.say(msg)
 
     #   Price Check all 1-handed swords
@@ -123,8 +153,12 @@ class MapleRoyals:
         weapons = GetWeaponsPrices()
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons[0])
-        msg += str(weapons[1])
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable([weapons[0], weapons[1]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
         await self.bot.say(msg)
 
     #   Price Check all 2-handed swords
@@ -138,7 +172,12 @@ class MapleRoyals:
         weapons = GetWeaponsPrices()
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons[2])
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable([weapons[2]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
         await self.bot.say(msg)
 
     #   Price Check all 1-handed axes
@@ -152,7 +191,12 @@ class MapleRoyals:
         weapons = GetWeaponsPrices()
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons[3])
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable([weapons[3]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
         await self.bot.say(msg)
 
     #   Price Check all 2-handed Axe
@@ -166,7 +210,12 @@ class MapleRoyals:
         weapons = GetWeaponsPrices()
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons[4])
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable([weapons[4]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
         await self.bot.say(msg)
 
     #   Price Check all 1-handed BW
@@ -180,7 +229,11 @@ class MapleRoyals:
         weapons = GetWeaponsPrices()
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons[5])
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable([weapons[5]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
         await self.bot.say(msg)
 
     #   Price Check all 2-handed BW
@@ -194,7 +247,11 @@ class MapleRoyals:
         weapons = GetWeaponsPrices()
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons[6])
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable([weapons[6]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
         await self.bot.say(msg)
 
     #   Price Check all Bow
@@ -208,7 +265,11 @@ class MapleRoyals:
         weapons = GetWeaponsPrices()
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons[7])
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable([weapons[7]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
         await self.bot.say(msg)
 
     #   Price Check all Crossbow
@@ -222,7 +283,11 @@ class MapleRoyals:
         weapons = GetWeaponsPrices()
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons[8])
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable([weapons[8]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
         await self.bot.say(msg)
 
     #   Price Check all Claw
@@ -236,7 +301,11 @@ class MapleRoyals:
         weapons = GetWeaponsPrices()
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons[9])
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable([weapons[9]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
         await self.bot.say(msg)
 
     #   Price Check all Dagger
@@ -250,7 +319,11 @@ class MapleRoyals:
         weapons = GetWeaponsPrices()
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons[10])
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable([weapons[10]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
         await self.bot.say(msg)
 
     #   Price Check all Spear
@@ -264,7 +337,11 @@ class MapleRoyals:
         weapons = GetWeaponsPrices()
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons[11])
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable([weapons[11]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
         await self.bot.say(msg)
 
     #   Price Check all Polearm
@@ -278,7 +355,11 @@ class MapleRoyals:
         weapons = GetWeaponsPrices()
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons[12])
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable([weapons[12]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
         await self.bot.say(msg)
 
     #   Price Check all Wand
@@ -292,7 +373,11 @@ class MapleRoyals:
         weapons = GetWeaponsPrices()
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons[13])
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable([weapons[13]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
         await self.bot.say(msg)
 
     #   Price Check all Staff
@@ -306,7 +391,11 @@ class MapleRoyals:
         weapons = GetWeaponsPrices()
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons[14])
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable([weapons[14]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
         await self.bot.say(msg)
 
     #   Price Check all Knuckle
@@ -320,11 +409,15 @@ class MapleRoyals:
         weapons = GetWeaponsPrices()
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons[15])
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable([weapons[15]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
         await self.bot.say(msg)
 
     #   Price Check all Gun
-    @PriceCheck.command(name="gun", aliases=["Gun"], pass_context=True)
+    @PriceCheck.command(name="gun", aliases=["Gun", "guns", "Guns"], pass_context=True)
     async def SayGunPrices(self, ctx):
         """Show all prices for Guns.
         """
@@ -334,11 +427,15 @@ class MapleRoyals:
         weapons = GetWeaponsPrices()
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(weapons[16])
+        msg += "```md" + "\n"
+        msg += GetFormattedWeaponsTable([weapons[16]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
         await self.bot.say(msg)
 
     #   Price Check all helmets
-    @PriceCheck.command(name="helmet", aliases=["Helmet", "hel", "Hel", "h" "H"], pass_context=True)
+    @PriceCheck.command(name="helmet", aliases=["Helmet", "hel", "Hel", "h" "H","helm", "Helm"], pass_context=True)
     async def SayHelmetPrices(self, ctx):
         """Show all prices for Helmets.
         """
@@ -346,17 +443,205 @@ class MapleRoyals:
         await self.bot.send_typing(ctx.message.channel)
 
         scrolls = GetScrollPrices()
-        #   Add headers
-        scrolls.insert(0, ("Scroll(s)","10%","30%","60%","70%","100%",))
 
         msg = ctx.message.author.mention + "\n"
-        msg += str(scrolls[0])
-        msg += str(scrolls[1])
-        msg += str(scrolls[2])
-        msg += str(scrolls[3])
+        msg += "```md" + "\n"
+        msg += GetFormattedScrollsTable([scrolls[0],scrolls[1],scrolls[2]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
         await self.bot.say(msg)
 
+    #   Price Check all Overalls
+    @PriceCheck.command(name="overall", aliases=["Overall", "overalls", "Overalls", "oa" "OA"], pass_context=True)
+    async def SayOverallPrices(self, ctx):
+        """Show all prices for Overalls.
+        """
+        #   Add "typing... " status
+        await self.bot.send_typing(ctx.message.channel)
 
+        scrolls = GetScrollPrices()
+
+        msg = ctx.message.author.mention + "\n"
+        msg += "```md" + "\n"
+        msg += GetFormattedScrollsTable([scrolls[3],scrolls[4],scrolls[5],scrolls[6]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
+        await self.bot.say(msg)
+
+    #   Price Check all shoes
+    @PriceCheck.command(name="shoes", aliases=["Shoes", "shoe", "Shoe"], pass_context=True)
+    async def SayShoePrices(self, ctx):
+        """Show all prices for Shoes.
+        """
+        #   Add "typing... " status
+        await self.bot.send_typing(ctx.message.channel)
+
+        scrolls = GetScrollPrices()
+
+        msg = ctx.message.author.mention + "\n"
+        msg += "```md" + "\n"
+        msg += GetFormattedScrollsTable([scrolls[7],scrolls[8]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
+        await self.bot.say(msg)
+
+    #   Price Check all capes
+    @PriceCheck.command(name="capes", aliases=["Capes", "cape", "Cape"], pass_context=True)
+    async def SayCapePrices(self, ctx):
+        """Show all prices for capes.
+        """
+        #   Add "typing... " status
+        await self.bot.send_typing(ctx.message.channel)
+
+        scrolls = GetScrollPrices()
+
+        msg = ctx.message.author.mention + "\n"
+        msg += "```md" + "\n"
+        msg += GetFormattedScrollsTable([scrolls[9],scrolls[10], scrolls[11], scrolls[12]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
+        await self.bot.say(msg)
+
+    #   Price Check all Face
+    @PriceCheck.command(name="face", aliases=["Face", "faces", "Faces"], pass_context=True)
+    async def SayFacePrices(self, ctx):
+        """Show all prices for faces.
+        """
+        #   Add "typing... " status
+        await self.bot.send_typing(ctx.message.channel)
+
+        scrolls = GetScrollPrices()
+
+        msg = ctx.message.author.mention + "\n"
+        msg += "```md" + "\n"
+        msg += GetFormattedScrollsTable([scrolls[13]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
+        await self.bot.say(msg)
+
+    #   Price Check all topwear
+    @PriceCheck.command(name="topwear", aliases=["Topwear", "topwears", "Topwears", "top", "Top"], pass_context=True)
+    async def SayTopwearPrices(self, ctx):
+        """Show all prices for topwears.
+        """
+        #   Add "typing... " status
+        await self.bot.send_typing(ctx.message.channel)
+
+        scrolls = GetScrollPrices()
+
+        msg = ctx.message.author.mention + "\n"
+        msg += "```md" + "\n"
+        msg += GetFormattedScrollsTable([scrolls[14], scrolls[15]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
+        await self.bot.say(msg)
+
+    #   Price Check all bottomwear
+    @PriceCheck.command(name="bottomwear", aliases=["Bottomwear", "bottomwears", "Bottomwears", "bottom", "Bottom"], pass_context=True)
+    async def SayBottomwearPrices(self, ctx):
+        """Show all prices for bottomwears.
+        """
+        #   Add "typing... " status
+        await self.bot.send_typing(ctx.message.channel)
+
+        scrolls = GetScrollPrices()
+
+        msg = ctx.message.author.mention + "\n"
+        msg += "```md" + "\n"
+        msg += GetFormattedScrollsTable([scrolls[16], scrolls[17]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
+        await self.bot.say(msg)
+
+    #   Price Check all gloves
+    @PriceCheck.command(name="glove", aliases=["Glove", "Gloves", "gloves"], pass_context=True)
+    async def SayGlovePrices(self, ctx):
+        """Show all prices for gloves.
+        """
+        #   Add "typing... " status
+        await self.bot.send_typing(ctx.message.channel)
+
+        scrolls = GetScrollPrices()
+
+        msg = ctx.message.author.mention + "\n"
+        msg += "```md" + "\n"
+        msg += GetFormattedScrollsTable([scrolls[18], scrolls[19]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
+        await self.bot.say(msg)
+
+    #   Price Check all shields
+    @PriceCheck.command(name="shield", aliases=["Shield", "shields", "Shields"], pass_context=True)
+    async def SayShieldPrices(self, ctx):
+        """Show all prices for shields.
+        """
+        #   Add "typing... " status
+        await self.bot.send_typing(ctx.message.channel)
+
+        scrolls = GetScrollPrices()
+
+        msg = ctx.message.author.mention + "\n"
+        msg += "```md" + "\n"
+        msg += GetFormattedScrollsTable([scrolls[20], scrolls[21]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
+        await self.bot.say(msg)
+
+    #   Price Check all Eye
+    @PriceCheck.command(name="eye", aliases=["Eye", "eyes", "Eyes"], pass_context=True)
+    async def SayEyePrices(self, ctx):
+        """Show all prices for eyes.
+        """
+        #   Add "typing... " status
+        await self.bot.send_typing(ctx.message.channel)
+
+        scrolls = GetScrollPrices()
+
+        msg = ctx.message.author.mention + "\n"
+        msg += "```md" + "\n"
+        msg += GetFormattedScrollsTable([scrolls[22], scrolls[23]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
+        await self.bot.say(msg)
+
+    #   Price Check all earring
+    @PriceCheck.command(name="earring", aliases=["Earring", "earrings", "Earrings"], pass_context=True)
+    async def SayEarringPrices(self, ctx):
+        """Show all prices for earring.
+        """
+        #   Add "typing... " status
+        await self.bot.send_typing(ctx.message.channel)
+
+        scrolls = GetScrollPrices()
+
+        msg = ctx.message.author.mention + "\n"
+        msg += "```md" + "\n"
+        msg += GetFormattedScrollsTable([scrolls[24], scrolls[25], scrolls[26]])
+        msg += "\n```"
+        msg += "\nSource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
+        await self.bot.say(msg)
 
 def setup(bot):
     bot.add_cog(MapleRoyals(bot))
@@ -408,6 +693,7 @@ def InitializeConfig():
     config.read(CONFIG_FILE_PATH)
 
     #   Create references to globals
+    global spreadsheetSource
     global spreadsheetID
     global UpdatedDateRange
     global WeaponsNormalRange
@@ -430,6 +716,7 @@ def InitializeConfig():
 
     #   Assign variables from config
     #   Main Settings
+    spreadsheetSource = config.get("Settings", "price spreadsheet source")
     spreadsheetID = config.get('Settings', 'price spreadsheet ID')
     #   Scrolls section
     UpdatedDateRange = config.get('Spreadsheet Price Ranges', 'price updated date')
@@ -465,6 +752,31 @@ def GetPriceUpdateDate():
         return 'No data found.'
     else:
         return values[0][0]
+
+#   Returns formatted table for weapons given list of tuples
+def GetFormattedWeaponsTable(weapons):
+    #   Create table format
+    table = Texttable()
+    table.header(["Weapon(s)","10%","30%","60%","70%","100% Event"])
+    table.set_deco(Texttable.HEADER)
+    table.set_cols_align(["l", "c", "c", "c", "c", "c"])
+    table.set_cols_valign(["m", "m", "m", "m", "m", "m"])
+    for weapon in weapons:
+        table.add_row([weapon[0], weapon[1], weapon[2], weapon[3], weapon[4], weapon[5]])
+    return table.draw()
+
+#   Returns formatted table for scrolls given list of tuples
+def GetFormattedScrollsTable(scrolls):
+    #   Create table format
+    table = Texttable()
+    table.header(["Scroll(s)","10%","30%","60%","70%","100%"])
+    table.set_deco(Texttable.HEADER)
+    table.set_cols_align(["l", "c", "c", "c", "c", "c"])
+    table.set_cols_valign(["m", "m", "m", "m", "m", "m"])
+    
+    for scroll in scrolls:
+        table.add_row([scroll[0], scroll[1], scroll[2], scroll[3], scroll[4], scroll[5]])
+    return table.draw()
 
 #   Returns tuple of weapons 
 def GetWeaponsPrices():
@@ -503,6 +815,10 @@ def GetWeaponsPrices():
     #for weapon in weaponsPrices:
     #    print(weapon)
 
+    #   Reduce name size and add empty value for 1H sword for M.Att in the 100% event slot
+    weaponsPrices[0] = ("One-Hand Sword (Atk)", weaponsPrices[0][1], weaponsPrices[0][2], weaponsPrices[0][3], weaponsPrices[0][4], weaponsPrices[0][5])
+    weaponsPrices[1] = ("One-Hand Sword (M.Atk)", weaponsPrices[1][1], weaponsPrices[1][2], weaponsPrices[1][3], weaponsPrices[1][4], "-----")
+
     return weaponsPrices
 
 #   Returns tuple of all scrolls
@@ -522,108 +838,108 @@ def GetScrollPrices():
     global EyeRange
     global EarringRange
 
-    scrollPrices = []
+    scrolls = []
 
     #   Get 10%-100% helmet range
     result = SheetsService.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=HelmetRange).execute()
     normalValues = result.get('values', [])
-
+    print("Fetching helmets...")
     #   append each row to tuple list
     for row in enumerate(normalValues):
         row[1][0] = "(Helmet) " + row[1][0]
-        scrollPrices.append(tuple(row[1]))
+        scrolls.append(tuple(row[1]))
 
     #   Get 10%-100% Overall range
     result = SheetsService.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=OverallRange).execute()
     normalValues = result.get('values', [])
-
+    print("Fetching overalls...")
     #   append each row to tuple list
     for row in enumerate(normalValues):   
         row[1][0] = "(Overall) " + row[1][0]
-        scrollPrices.append(tuple(row[1]))
+        scrolls.append(tuple(row[1]))
 
     #   Get 10%-100% Shoes range
     result = SheetsService.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=ShoesRange).execute()
     normalValues = result.get('values', [])
-
+    print("Fetching shoes...")
     #   append each row to tuple list
     for row in enumerate(normalValues):   
         row[1][0] = "(Shoes) " + row[1][0]
-        scrollPrices.append(tuple(row[1]))
+        scrolls.append(tuple(row[1]))
 
     #   Get 10%-100% Cape range
     result = SheetsService.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=CapeRange).execute()
     normalValues = result.get('values', [])
-
+    print("Fetching capes...")
     #   append each row to tuple list
     for row in enumerate(normalValues):   
         row[1][0] = "(Cape) " + row[1][0]
-        scrollPrices.append(tuple(row[1]))
+        scrolls.append(tuple(row[1]))
 
     #   Get 10%-100% Face range
     result = SheetsService.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=FaceRange).execute()
     normalValues = result.get('values', [])
-
+    print("Fetching face...")
     #   append each row to tuple list
     for row in enumerate(normalValues):   
         row[1][0] = "(Face) " + row[1][0]
-        scrollPrices.append(tuple(row[1]))
+        scrolls.append(tuple(row[1]))
 
     #   Get 10%-100% Topwear range
     result = SheetsService.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=TopwearRange).execute()
     normalValues = result.get('values', [])
-
+    print("Fetching topwears...")
     #   append each row to tuple list
     for row in enumerate(normalValues):   
         row[1][0] = "(Topwear) " + row[1][0]
-        scrollPrices.append(tuple(row[1]))
+        scrolls.append(tuple(row[1]))
 
         #   Get 10%-100% Bottomwear range
     result = SheetsService.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=BottomwearRange).execute()
     normalValues = result.get('values', [])
-
+    print("Fetching bottomwear...")
     #   append each row to tuple list
     for row in enumerate(normalValues):   
         row[1][0] = "(Bottomwear) " + row[1][0]
-        scrollPrices.append(tuple(row[1]))
+        scrolls.append(tuple(row[1]))
 
         #   Get 10%-100% Gloves range
     result = SheetsService.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=GlovesRange).execute()
     normalValues = result.get('values', [])
-
+    print("Fetching gloves...")
     #   append each row to tuple list
     for row in enumerate(normalValues):   
         row[1][0] = "(Gloves) " + row[1][0]
-        scrollPrices.append(tuple(row[1]))
+        scrolls.append(tuple(row[1]))
 
         #   Get 10%-100% Shield range
     result = SheetsService.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=ShieldRange).execute()
     normalValues = result.get('values', [])
-
+    print("Fetching shield...")
     #   append each row to tuple list
     for row in enumerate(normalValues):   
         row[1][0] = "(Shield) " + row[1][0]
-        scrollPrices.append(tuple(row[1]))
+        scrolls.append(tuple(row[1]))
 
         #   Get 10%-100% Eye range
     result = SheetsService.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=EyeRange).execute()
     normalValues = result.get('values', [])
-
+    print("Fetching eye...")
     #   append each row to tuple list
     for row in enumerate(normalValues):   
         row[1][0] = "(Eye) " + row[1][0]
-        scrollPrices.append(tuple(row[1]))
+        scrolls.append(tuple(row[1]))
 
         #   Get 10%-100% Earring range
     result = SheetsService.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=EarringRange).execute()
     normalValues = result.get('values', [])
-
+    print("Fetching earrings...")
     #   append each row to tuple list
     for row in enumerate(normalValues):   
         row[1][0] = "(Earring) " + row[1][0]
-        scrollPrices.append(tuple(row[1]))
-
+        scrolls.append(tuple(row[1]))
+    
     #print("\n")
     #for scroll in scrollPrices:
     #    print(scroll)
-    return scrollPrices
+    return scrolls
