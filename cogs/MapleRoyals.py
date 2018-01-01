@@ -67,7 +67,14 @@ class MapleRoyals:
 
     @commands.group(pass_context=True, name="pc", aliases=["PriceCheck", "PC", "price", "pricecheck"])
     async def PriceCheck(self, ctx):
-        """Price Check"""
+        """Price Check by using the commands listed below
+            
+            NOTE: If you do not see the avaliable price checks below, that means I (DootTheSnoot) have coded it in yet. 
+
+            Moreover, I no longer play MapleRoyals but will gladly update the bot from time to time.
+
+            Nonetheless, feel free to PM me on Discord for any inquiries!
+        """
 
         #   Add "typing... " status
         await self.bot.send_typing(ctx.message.channel)
