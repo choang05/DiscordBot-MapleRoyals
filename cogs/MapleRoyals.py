@@ -69,11 +69,7 @@ class MapleRoyals:
     async def PriceCheck(self, ctx):
         """Price Check by using the commands listed below
             
-            NOTE: If you do not see the avaliable price checks below, that means I (DootTheSnoot) have not coded it in yet. 
-
-            Moreover, I no longer play MapleRoyals but will gladly update the bot from time to time.
-
-            Nonetheless, feel free to PM me on Discord for any inquiries!
+            NOTE: If you do not see your price checks below, that means I (DootTheSnoot) have not added it yet.
         """
 
         #   Add "typing... " status
