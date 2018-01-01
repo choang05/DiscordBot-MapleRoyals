@@ -69,7 +69,7 @@ class MapleRoyals:
     async def PriceCheck(self, ctx):
         """Price Check by using the commands listed below
             
-            NOTE: If you do not see your price checks below, that means I (DootTheSnoot) have not added it yet.
+            NOTE: If you do not see your price checks below, that means I (DootTheSnoot) have not coded it yet.
         """
 
         #   Add "typing... " status
