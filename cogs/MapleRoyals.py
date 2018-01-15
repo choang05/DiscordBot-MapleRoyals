@@ -3,6 +3,7 @@ import discord
 import httplib2
 import os
 import jellyfish
+from cogs.utils import checks
 from discord.ext import commands
 from apiclient import discovery
 from oauth2client import client
@@ -20,7 +21,7 @@ CONFIG_FILE_PATH = 'data/MapleRoyals/config.ini'
 # at ~/.credentials/sheets.googleapis.com-python-quickstart.json
 SCOPES = 'https://www.googleapis.com/auth/spreadsheets.readonly'
 CLIENT_SECRET_FILE = 'data/MapleRoyals/client_secret.json'
-#APPLICATION_NAME = 'Google Sheets API Python Quickstart'
+APPLICATION_NAME = 'Google Sheets API Python Quickstart'
 
 #   Price check source: https://docs.google.com/spreadsheets/d/1VHSCcav4Y9SDAExBYPnJbV5S8auAdChb9ylwhi_LAyQ/edit#gid=9692681
 spreadsheetSource = None
@@ -45,6 +46,7 @@ HeartstopperRange = None
 OnyxAppleRange = None
 WhiteScrollRange = None
 ChaosScrollRange = None
+AP_Resets_Range = None
 
 class MapleRoyals:
     """Bot for MapleRoyals!"""
@@ -56,9 +58,20 @@ class MapleRoyals:
         InitializeConfig()
         InitializeGoogleSheetsService()
 
+    #   Changes the status of the bot given a status message
+    @commands.command(name="setstatus", aliases=["SetStatus"])
+    @checks.is_owner()
+    async def SetStatus(self, status):
+        """Sets the status of the bot"""
+        #   change status
+        await self.bot.change_presence(game=discord.Game(name=status))
+
     @commands.group(pass_context=True, name="pc", aliases=["PriceCheck", "PC", "price", "pricecheck"])
     async def PriceCheck(self, ctx):
-        """Price Check"""
+        """Price Check by using the commands listed below
+            
+            NOTE: If you do not see your price checks below, that means I (DootTheSnoot) have not coded it yet.
+        """
 
         #   Add "typing... " status
         await self.bot.send_typing(ctx.message.channel)
@@ -101,7 +114,7 @@ class MapleRoyals:
         await self.bot.say(msg)
 
     #   Price Check all scrolls
-    @PriceCheck.command(name="scrolls", aliases=["Scrolls", "scroll", "Scroll", "s", "S"], pass_context=True)
+    @PriceCheck.command(name="scrolls", aliases=["Scrolls", "scroll", "Scroll", "s", "S", "armor", "Armor", "armour", "Armour"], pass_context=True)
     async def SayScrollPrices(self, ctx):
         """Show all prices for all scrolls.
         """
@@ -732,6 +745,28 @@ class MapleRoyals:
 
         await self.bot.say(msg)
 
+    #   Price Check AP Resets
+    @PriceCheck.command(name="ap", aliases=["AP", "APR", "apr", "apreset", "APReset", "apresets", "APResets"], pass_context=True)
+    async def SayCSPrices(self, ctx):
+        """Show all prices for AP Resets.
+        """
+
+        #   Add "typing... " status
+        await self.bot.send_typing(ctx.message.channel)
+
+        #   Get hearstopper range
+        result = SheetsService.spreadsheets().values().get(spreadsheetId=spreadsheetID, range=AP_Resets_Range).execute()
+        miscRange = result.get('values', [])
+
+        msg = ctx.message.author.mention + "\n"
+        msg += "```md" + "\n"
+        msg += miscRange[0][0]
+        msg += "\n```"
+        msg += "\nsource: " + spreadsheetSource
+        msg += "\n"+ GetPriceUpdateDate()
+
+        await self.bot.say(msg)
+
 def setup(bot):
     bot.add_cog(MapleRoyals(bot))
     
@@ -741,38 +776,7 @@ def InitializeGoogleSheetsService():
     global SheetsService
     #   Initialize Google API credentials
     print ("Initializing Google sheets services...")
-    credentials = get_credentials()
-    http = credentials.authorize(httplib2.Http())
-    discoveryUrl = ('https://sheets.googleapis.com/$discovery/rest?''version=v4')
-    SheetsService = discovery.build('sheets', 'v4', http=http, discoveryServiceUrl=discoveryUrl)
-
-#   Returns credentials for Google API
-def get_credentials():
-    """Gets valid user credentials from storage.
-
-    If nothing has been stored, or if the stored credentials are invalid,
-    the OAuth2 flow is completed to obtain the new credentials.
-
-    Returns:
-        Credentials, the obtained credential.
-    """
-    home_dir = os.path.expanduser('~')
-    credential_dir = os.path.join(home_dir, '.credentials')
-    if not os.path.exists(credential_dir):
-        os.makedirs(credential_dir)
-    credential_path = os.path.join(credential_dir,'sheets.googleapis.com-python-quickstart.json')
-
-    store = Storage(credential_path)
-    credentials = store.get()
-    if not credentials or credentials.invalid:
-        flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILE, SCOPES)
-        flow.user_agent = APPLICATION_NAME
-        if flags:
-            credentials = tools.run_flow(flow, store, flags)
-        else: # Needed only for compatibility with Python 2.6
-            credentials = tools.run(flow, store)
-        print('Storing credentials to ' + credential_path)
-    return credentials
+    SheetsService = discovery.build('sheets', 'v4',  developerKey='AIzaSyD81_C0xYmRHR5bHqZxwtWVhJe4vQQXw9Y')
 
 #   Parse the config file and evaluate
 def InitializeConfig():
@@ -802,6 +806,7 @@ def InitializeConfig():
     global OnyxAppleRange
     global WhiteScrollRange
     global ChaosScrollRange
+    global AP_Resets_Range
 
     #   Assign variables from config
     #   Main Settings
@@ -826,6 +831,7 @@ def InitializeConfig():
     OnyxAppleRange = config.get('Spreadsheet Price Ranges', 'onyx apple')
     WhiteScrollRange = config.get('Spreadsheet Price Ranges', 'white scroll')
     ChaosScrollRange = config.get('Spreadsheet Price Ranges', 'chaos scroll')
+    AP_Resets_Range = config.get('Spreadsheet Price Ranges', 'AP resets')
 
 #   Returns date of updates
 def GetPriceUpdateDate():
@@ -892,21 +898,23 @@ def GetWeaponsPrices():
 
     #   Loop through each weapon and add
     for i, row in enumerate(eventValues):
-        if i == 0:
+        print("")
+        if i == 1:
+            continue
             #   Add the 100% prices to the tuple
-            weaponsPrices[i] = weaponsPrices[i] + (row[0],)
+            #weaponsPrices[i] = weaponsPrices[i] + "-----"
         #   Skip after index of 1 because there is no 1H 100% magic price
         else:
             #   Add the 100% prices to the tuple
-            weaponsPrices[i+1] = weaponsPrices[i+1] + (row[0],)
-
-    #print("\n")
-    #for weapon in weaponsPrices:
-    #    print(weapon)
+            weaponsPrices[i] = weaponsPrices[i] + (row[0],)
 
     #   Reduce name size and add empty value for 1H sword for M.Att in the 100% event slot
     weaponsPrices[0] = ("One-Hand Sword (Atk)", weaponsPrices[0][1], weaponsPrices[0][2], weaponsPrices[0][3], weaponsPrices[0][4], weaponsPrices[0][5])
     weaponsPrices[1] = ("One-Hand Sword (M.Atk)", weaponsPrices[1][1], weaponsPrices[1][2], weaponsPrices[1][3], weaponsPrices[1][4], "-----")
+    
+    print("\n")
+    for weapon in weaponsPrices:
+        print(weapon)
 
     return weaponsPrices
 
